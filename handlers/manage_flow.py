@@ -19,6 +19,9 @@ except ImportError:
 # قاموس لحفظ بيانات التمديد المؤقتة
 renew_data = {}
 
+# 🔥 مسار قاعدة البيانات الذكي 🔥
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bot_data.db')
+
 # ==========================================
 # 🛠️ دوال العملية الجراحية لملف الكونفك والريستارت
 # ==========================================
@@ -203,11 +206,9 @@ def register_manage_handlers(bot):
             del db_data[email]
             update_db(db_data)
             
-            # 4. الحذف من SQLite DB
+            # 4. الحذف من SQLite DB ديناميكياً
             try:
-                home_dir = os.path.expanduser("~")
-                db_path = f'{home_dir}/v2ray_manager/bot_data.db'
-                conn = sqlite3.connect(db_path)
+                conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute("DELETE FROM users WHERE email=?", (email,))
                 conn.commit()
@@ -349,11 +350,9 @@ def register_manage_handlers(bot):
             db_data[email]['is_active'] = True
             update_db(db_data)
             
-            # 2. تحديث SQLite DB (الجديدة)
+            # 2. تحديث SQLite DB (ديناميكياً)
             try:
-                home_dir = os.path.expanduser("~")
-                db_path = f'{home_dir}/v2ray_manager/bot_data.db'
-                conn = sqlite3.connect(db_path)
+                conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute("UPDATE users SET quota_bytes=?, expiry_date=?, status='active' WHERE email=?", (new_quota, str(new_expiry), email))
                 if c.rowcount == 0:
