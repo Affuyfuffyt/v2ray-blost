@@ -1,0 +1,136 @@
+{
+  "log": {
+    "access": "/home/alowapp/xray_core/access.log",
+    "error": "/home/alowapp/xray_core/error.log",
+    "loglevel": "warning"
+  },
+  "stats": {},
+  "api": {
+    "tag": "api",
+    "services": [
+      "StatsService",
+      "HandlerService",
+      "LoggerService",
+      "ReflectionService"
+    ]
+  },
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserUplink": true,
+        "statsUserDownlink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
+  },
+  "inbounds": [
+    {
+      "tag": "vless_tcp_fallback",
+      "port": 8100,
+      "listen": "0.0.0.0",
+      "protocol": "vless",
+      "settings": {
+        "clients": [],
+        "decryption": "none",
+        "fallbacks": [
+          {
+            "path": "/Telegram-@338888-vless",
+            "dest": 8101
+          },
+          {
+            "path": "/Telegram-@338888-vmess",
+            "dest": 8102
+          },
+          {
+            "path": "/Telegram-@338888-trojan",
+            "dest": 8103
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "tcp"
+      }
+    },
+    {
+      "tag": "vless",
+      "port": 8101,
+      "listen": "127.0.0.1",
+      "protocol": "vless",
+      "settings": {
+        "clients": [],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/Telegram-@338888-vless"
+        }
+      }
+    },
+    {
+      "tag": "vmess",
+      "port": 8102,
+      "listen": "127.0.0.1",
+      "protocol": "vmess",
+      "settings": {
+        "clients": []
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/Telegram-@338888-vmess"
+        }
+      }
+    },
+    {
+      "tag": "trojan",
+      "port": 8103,
+      "listen": "127.0.0.1",
+      "protocol": "trojan",
+      "settings": {
+        "clients": []
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/Telegram-@338888-trojan"
+        }
+      }
+    },
+    {
+      "port": 10086,
+      "listen": "127.0.0.1",
+      "protocol": "dokodemo-door",
+      "settings": {
+        "address": "127.0.0.1"
+      },
+      "tag": "api"
+    }
+  ],
+  "outbounds": [
+    {
+      "protocol": "freedom",
+      "tag": "freedom"
+    },
+    {
+      "protocol": "blackhole",
+      "tag": "api"
+    }
+  ],
+  "routing": {
+    "rules": [
+      {
+        "inboundTag": [
+          "api"
+        ],
+        "outboundTag": "api",
+        "type": "field"
+      }
+    ]
+  }
+}
