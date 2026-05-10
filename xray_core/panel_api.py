@@ -1,23 +1,38 @@
 import json
 import os
+import requests
+from dotenv import load_dotenv
 import time
 
-# 🔥 المسار اليدوي اللي طلبته (تغير wathfor لكل سيرفر جديد) 🔥
-CONFIG_PATH = '/home/linkapp/xray_core/start.sh'
+# 🔥 مسار ديناميكي ذكي يستخرج اسم اليوزر ومسار الكونفيك تلقائياً 🔥
+HOME_DIR = os.path.expanduser("~")
+CONFIG_PATH = f'{HOME_DIR}/xray_core/config.json'
 
 class PanelAPI:
     def __init__(self):
-        pass
+        load_dotenv()
+        self.api_key = os.getenv('AD_API_KEY')
+        self.site_id = os.getenv('AD_SITE_ID')
 
     def create_client(self, email, uuid, protocol="vless"):
         try:
             if not os.path.exists(CONFIG_PATH):
-                print(f"❌ خطأ: ملف الإعدادات غير موجود في {CONFIG_PATH}")
+                print(f"❌ Error: Config file not found at {CONFIG_PATH}")
                 return False
 
             with open(CONFIG_PATH, 'r') as f:
                 config = json.load(f)
             
+            # تصحيح مسار اللوكات التلقائي
+            local_user = os.path.basename(HOME_DIR)
+            if "log" in config:
+                expected_access = f"/home/{local_user}/xray_core/access.log"
+                expected_error = f"/home/{local_user}/xray_core/error.log"
+                if config["log"].get("access") != expected_access:
+                    config["log"]["access"] = expected_access
+                if config["log"].get("error") != expected_error:
+                    config["log"]["error"] = expected_error
+
             main_inbound = 0
             
             if protocol == "vless" or protocol == "vmess":
@@ -81,4 +96,5 @@ class PanelAPI:
                 
             return True
         except Exception as e:
+            print(f"Error changing status: {e}")
             return False
