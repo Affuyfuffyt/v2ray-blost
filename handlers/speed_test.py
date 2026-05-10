@@ -2,10 +2,13 @@ import os
 import json
 import time
 
-SPEED_FILE = os.path.expanduser('~/v2ray_manager/live_speed.json')
+# 🔥 الحل الجذري: مسار ديناميكي يكتشف مجلد البوت تلقائياً 🔥
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SPEED_FILE = os.path.join(BASE_DIR, 'live_speed.json')
 
 def register_speed_handlers(bot):
-    @bot.callback_query_handler(func=lambda call: call.data == "live_speed_test")
+    # تم تصحيح الكول باك ليتطابق مع الزر في اللوحة الرئيسية
+    @bot.callback_query_handler(func=lambda call: call.data == "speed_test")
     def ask_test_duration(call):
         chat_id = call.message.chat.id
         msg = bot.send_message(chat_id, "⏱️ أرسل عدد الثواني لإجراء الفحص (مثال: 10 أو 20):")
