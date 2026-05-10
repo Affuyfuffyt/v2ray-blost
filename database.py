@@ -4,10 +4,10 @@ import sqlite3
 import datetime
 import time
 
-# تحديد مسارات قواعد البيانات (الـ JSON والـ SQLite)
-home_dir = os.path.expanduser('~')
-JSON_DB_PATH = f'{home_dir}/v2ray_manager/users_db.json'
-SQLITE_DB_PATH = f'{home_dir}/v2ray_manager/bot_data.db'
+# 🔥 الحل الجذري: تحديد مسار المجلد الحالي تلقائياً بدلاً من كتابة اسمه يدوياً 🔥
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+JSON_DB_PATH = os.path.join(BASE_DIR, 'users_db.json')
+SQLITE_DB_PATH = os.path.join(BASE_DIR, 'bot_data.db')
 
 # ==========================================
 # 1️⃣ قسم قاعدة بيانات JSON (لضمان عمل أزرار البوت القديمة)
