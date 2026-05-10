@@ -1,9 +1,11 @@
 import time
+import os
 from database import load_db, update_db
 from xray_core.panel_api import PanelAPI
 
-# مسارات كاملة - تأكد من صحتها في سيرفرك
-ERROR_LOG = '/home/wathfor/v2ray_manager/monitor_error.log'
+# 🔥 تحديد مسار ملف الأخطاء ديناميكياً بدلاً من المسار الثابت 🔥
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ERROR_LOG = os.path.join(BASE_DIR, 'monitor_error.log')
 
 def start_quota_monitor():
     api = PanelAPI()
