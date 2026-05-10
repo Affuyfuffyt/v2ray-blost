@@ -4,9 +4,10 @@ import os
 import json
 import threading
 
-home_dir = os.path.expanduser("~")
-DB_PATH = f"{home_dir}/v2ray_manager/bot_data.db"
-NOTIFIED_FILE = f"{home_dir}/v2ray_manager/notified_users.json"
+# 🔥 الحل الجذري: اكتشاف مسار المجلد الحالي تلقائياً 🔥
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "bot_data.db")
+NOTIFIED_FILE = os.path.join(BASE_DIR, "notified_users.json")
 
 # تحميل الإشعارات السابقة حتى ما يكرر الرسالة أكثر من مرة
 def load_notified():
@@ -22,10 +23,12 @@ def save_notified(data):
         json.dump(data, f)
 
 def start_notifier(bot):
+    print("🔔 نظام التنبيهات الذكي للمشتركين بدأ العمل...")
     while True:
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
+            # جلب المشتركين المربوطين بتليجرام فقط لإرسال التنبيهات لهم
             c.execute('''SELECT u.email, u.expiry_date, s.chat_id 
                          FROM users u JOIN user_subscriptions s ON u.email = s.email''')
             rows = c.fetchall()
@@ -71,7 +74,7 @@ def start_notifier(bot):
         except Exception as e:
             print(f"Notifier Error: {e}")
         
-        time.sleep(300) # يفحص كل 5 دقائق
+        time.sleep(300) # يفحص كل 5 دقائق لضمان عدم إثقال السيرفر
 
 def send_alert(bot, chat_id, email, time_str):
     text = f"⚠️ **تنبيه قرب انتهاء الاشتراك!** ⚠️\n\n👤 المشترك: `{email}`\n⏳ الوقت المتبقي: **{time_str}**\n\nيرجى التجديد قبل توقف الخدمة لتجنب الانقطاع.\n\n🛒 لتجديد الاشتراك تواصل مع المبيعات:\n@l_t22\n\n📢 تابع قناتنا لكل جديد:\nhttps://t.me/r338888"
@@ -83,27 +86,29 @@ def send_expired_alert(bot, chat_id, email):
     try: bot.send_message(chat_id, text, parse_mode="Markdown")
     except: pass
 
-# دالة يمكن استدعاؤها من ملفات الإدارة (مثل create_flow.py) لإبلاغ العميل بحدوث تمديد لاشتراكه
+# دالة لإبلاغ العميل بحدوث تمديد لاشتراكه (تستدعى من create_flow أو manage_flow)
 def notify_extension(bot, email, seconds_added):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT chat_id FROM user_subscriptions WHERE email=?", (email,))
-    rows = c.fetchall()
-    conn.close()
-    
-    if not rows: return
-    
-    days = int(seconds_added // 86400)
-    hours = int((seconds_added % 86400) // 3600)
-    mins = int((seconds_added % 3600) // 60)
-    
-    added_str = ""
-    if days > 0: added_str += f"{days} يوم "
-    if hours > 0: added_str += f"{hours} ساعة "
-    if mins > 0: added_str += f"{mins} دقيقة"
-    
-    text = f"🎉 **تم تمديد اشتراكك بنجاح!** 🎉\n\n👤 المشترك: `{email}`\n⏳ مدة التمديد: **{added_str.strip()}**\n\nشكراً لاستخدامك خدماتنا! 🚀"
-    
-    for row in rows:
-        try: bot.send_message(row[0], text, parse_mode="Markdown")
-        except: pass
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT chat_id FROM user_subscriptions WHERE email=?", (email,))
+        rows = c.fetchall()
+        conn.close()
+        
+        if not rows: return
+        
+        days = int(seconds_added // 86400)
+        hours = int((seconds_added % 86400) // 3600)
+        mins = int((seconds_added % 3600) // 60)
+        
+        added_str = ""
+        if days > 0: added_str += f"{days} يوم "
+        if hours > 0: added_str += f"{hours} ساعة "
+        if mins > 0: added_str += f"{mins} دقيقة"
+        
+        text = f"🎉 **تم تمديد اشتراكك بنجاح!** 🎉\n\n👤 المشترك: `{email}`\n⏳ مدة التمديد: **{added_str.strip()}**\n\nشكراً لاستخدامك خدماتنا! 🚀"
+        
+        for row in rows:
+            try: bot.send_message(row[0], text, parse_mode="Markdown")
+            except: pass
+    except: pass
