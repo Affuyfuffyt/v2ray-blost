@@ -2,9 +2,10 @@ import sqlite3
 import datetime
 import os
 
-# تحديد مسار قاعدة البيانات ليكون دائم وما يضيع
-home_dir = os.path.expanduser("~")
-DB_PATH = f'{home_dir}/v2ray_manager/bot_data.db'
+# 🔥 الحل الجذري: تحديد مسار المجلد الرئيسي تلقائياً بدون كتابة اسم المجلد يدوياً 🔥
+# استخدمنا dirname مرتين لأن هذا الملف موجود داخل مجلد database
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, 'bot_data.db')
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
