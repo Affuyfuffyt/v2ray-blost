@@ -219,8 +219,9 @@ def auto_restart_on_expiry(bot, chat_id, expiry_time, user_name, uuid_val, proto
 # ==========================================
 def database_expiry_watchdog(bot):
     admin_id = None
-    home_dir = os.path.expanduser("~")
-    env_path = f"{home_dir}/v2ray_manager/.env"
+    # 🔥 الحل الجذري الأول: البحث عن ملف .env ديناميكياً بدلاً من المجلد الثابت 🔥
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(base_dir, ".env")
     
     if os.path.exists(env_path):
         with open(env_path, 'r') as f:
@@ -617,9 +618,11 @@ def register_create_handlers(bot):
         ).start()
 
         selected_port = data.get('port', 443)
-        host_domain = "wathfor.alwaysdata.net" 
         
-        # 🔥 التعديل الجذري هنا: استخراج الهوست الحقيقي من قاعدة البيانات مباشرة 🔥
+        # 🔥 الحل الجذري الثاني: استخراج يوزر الهوست تلقائياً من اسم المجلد الرئيسي 🔥
+        local_user = os.path.basename(os.path.expanduser("~"))
+        host_domain = f"{local_user}.alwaysdata.net"
+        
         if server_id == 1:
             try:
                 home_dir = os.path.expanduser("~")
