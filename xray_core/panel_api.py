@@ -23,18 +23,20 @@ class PanelAPI:
             s.bind(('', 0))
             return s.getsockname()[1]
 
-    # 🔥 دالة الفحص والضبط التلقائي للبورتات المتضاربة
+    # 🔥 دالة الفحص والضبط التلقائي (تعمل مرة واحدة فقط لكل يوزر جديد)
     def optimize_ports(self):
         try:
             if not os.path.exists(CONFIG_PATH):
                 return
                 
-            with open(CONFIG_PATH, 'r') as f:
-                config = json.load(f)
+            active_port_file = f'{HOME_DIR}/active_port.txt'
+            
+            # إذا كان ملف active_port.txt غير موجود، معناه هذا يوزر جديد ويحتاج بورتات جديدة!
+            if not os.path.exists(active_port_file):
+                print("⚠️ جاري سحب بورتات جديدة غير مستخدمة لهذا الحساب...")
 
-            # إذا كان البورت الرئيسي 8100 (الافتراضي)، معناه يحتاج تغيير لمنع التضارب
-            if config['inbounds'][0].get('port') == 8100:
-                print("⚠️ جاري سحب بورتات جديدة غير مستخدمة من السيرفر...")
+                with open(CONFIG_PATH, 'r') as f:
+                    config = json.load(f)
 
                 # سحب بورتات نظيفة
                 p_main = self.get_free_port()
@@ -62,8 +64,8 @@ class PanelAPI:
                 with open(CONFIG_PATH, 'w') as f:
                     json.dump(config, f, indent=2)
                 
-                # حفظ البورت الرئيسي بملف نصي حتى المستخدم يكدر يشوفه
-                with open(f'{HOME_DIR}/active_port.txt', 'w') as f:
+                # حفظ البورت الرئيسي بملف نصي لضمان عدم تغييره مستقبلاً ولتسهيل معرفته
+                with open(active_port_file, 'w') as f:
                     f.write(str(p_main))
 
                 print(f"✅ تم ضبط البورتات بنجاح! بورت الاتصال الرئيسي هو: {p_main}")
@@ -122,7 +124,7 @@ class PanelAPI:
             return False
 
     def restart_xray(self):
-        # تم تحديث مسار إعادة التشغيل ليكون ديناميكي ومتوافق مع مسارك
+        # مسار ديناميكي متوافق 100%
         os.system(f"pkill -9 xray ; nohup {HOME_DIR}/xray_core/xray run -c {HOME_DIR}/xray_core/config.json > {HOME_DIR}/xray_core/xray.log 2>&1 &")
         time.sleep(0.5)
         return True
