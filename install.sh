@@ -48,18 +48,10 @@ cd $WORK_DIR
 echo "[+] جاري تهيئة الملفات للاسم الجديد: $APP_DIR"
 find $WORK_DIR -type f -name "*.py" -exec sed -i "s/v2ray_manager/$APP_DIR/g" {} +
 
-# 🔥 6. التعديل الأهم: حماية الكونفك وتصحيح اليوزر تلقائياً 🔥
-if [ ! -f "$XRAY_DIR/config.json" ]; then
-    cp xray_core/config.json $XRAY_DIR/config.json
-    echo "[+] تم نسخ ملف الإعدادات لأول مرة."
-else
-    echo "[+] ملف الإعدادات موجود مسبقاً، تم الاحتفاظ بالبورتات الخاصة بك لمنع التضارب."
-fi
-
-# إجبار الملف على استخدام اسم اليوزر الحالي بدل أي اسم قديم (مثل alowapp)
-sed -i "s/alowapp/$USER/g" $XRAY_DIR/config.json
-sed -i "s|/home/.*/xray_core/access.log|/home/$USER/xray_core/access.log|g" $XRAY_DIR/config.json
-sed -i "s|/home/.*/xray_core/error.log|/home/$USER/xray_core/error.log|g" $XRAY_DIR/config.json
+# 6. نقل ملف config.json للمكان الصحيح وتصحيح المسارات تلقائياً
+cp xray_core/config.json $XRAY_DIR/config.json
+sed -i "s|/home/.*/xray_core/access.log|access.log|g" $XRAY_DIR/config.json
+sed -i "s|/home/.*/xray_core/error.log|error.log|g" $XRAY_DIR/config.json
 
 # 7. تخزين كل المفاتيح في ملف البيئة المخفي
 echo "BOT_TOKEN=$BOT_TOKEN" > .env
