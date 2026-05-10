@@ -4,10 +4,10 @@ import sqlite3
 import datetime
 import time
 
-# تحديد مسارات قواعد البيانات
-HOME_DIR = os.path.expanduser('~')
-JSON_DB_PATH = f'{HOME_DIR}/v2ray_manager/users_db.json'
-SQLITE_DB_PATH = f'{HOME_DIR}/v2ray_manager/bot_data.db'
+# 🔥 الحل الجذري: تحديد مسار المجلد الحالي تلقائياً (سواء كان week_blust أو غيره) 🔥
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+JSON_DB_PATH = os.path.join(BASE_DIR, 'users_db.json')
+SQLITE_DB_PATH = os.path.join(BASE_DIR, 'bot_data.db')
 
 # ==========================================
 # 1️⃣ قسم قاعدة بيانات JSON (للتوافق القديم)
