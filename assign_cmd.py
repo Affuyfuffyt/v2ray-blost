@@ -2,9 +2,18 @@ import telebot
 import os
 from dotenv import load_dotenv
 
-# تحميل المتغيرات
-load_dotenv()
+# 🔥 الحل الجذري: تحديد مسار ملف .env ديناميكياً لضمان عدم ضياع البيانات 🔥
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ENV_PATH = os.path.join(BASE_DIR, ".env")
+
+# تحميل المتغيرات من المسار الصحيح بدقة
+load_dotenv(ENV_PATH)
 TOKEN = os.getenv("BOT_TOKEN")
+
+if not TOKEN:
+    print("❌ خطأ: لم يتم العثور على التوكن في ملف .env")
+    exit()
+
 bot = telebot.TeleBot(TOKEN)
 
 try:
@@ -26,8 +35,8 @@ try:
     cmds.append(new_cmd)
     bot.set_my_commands(cmds)
 
-    # حفظ الأمر داخل ملف .env الخاص بهذا السيرفر حصراً
-    with open(".env", "a") as f:
+    # حفظ الأمر داخل ملف .env الخاص بهذا السيرفر حصراً بالمسار الصحيح
+    with open(ENV_PATH, "a") as f:
         f.write(f"\nMY_BOT_COMMAND={my_cmd}\n")
 
     print(f"[+] تم حجز وتثبيت الأمر الخاص بهذا السيرفر: /{my_cmd}")
