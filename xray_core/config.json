@@ -31,7 +31,7 @@
   "inbounds": [
     {
       "tag": "vless_tcp_fallback",
-      "port": 29100,
+      "port": 8100,
       "listen": "0.0.0.0",
       "protocol": "vless",
       "settings": {
@@ -40,15 +40,15 @@
         "fallbacks": [
           {
             "path": "/Telegram-@338888-vless",
-            "dest": 29101
+            "dest": 8100
           },
           {
             "path": "/Telegram-@338888-vmess",
-            "dest": 29102
+            "dest": 8100
           },
           {
             "path": "/Telegram-@338888-trojan",
-            "dest": 29103
+            "dest": 8100
           }
         ]
       },
@@ -58,7 +58,7 @@
     },
     {
       "tag": "vless",
-      "port": 29101,
+      "port": 8100,
       "listen": "127.0.0.1",
       "protocol": "vless",
       "settings": {
@@ -74,7 +74,7 @@
     },
     {
       "tag": "vmess",
-      "port": 29102,
+      "port": 8100,
       "listen": "127.0.0.1",
       "protocol": "vmess",
       "settings": {
@@ -89,7 +89,7 @@
     },
     {
       "tag": "trojan",
-      "port": 29103,
+      "port": 8100,
       "listen": "127.0.0.1",
       "protocol": "trojan",
       "settings": {
@@ -103,7 +103,7 @@
       }
     },
     {
-      "port": 29086,
+      "port": 8100,
       "listen": "127.0.0.1",
       "protocol": "dokodemo-door",
       "settings": {
