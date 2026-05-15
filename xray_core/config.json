@@ -1,13 +1,8 @@
 {
-  "log": {
-    "access": "access.log",
-    "error": "error.log",
-    "loglevel": "warning"
-  },
   "inbounds": [
     {
       "port": 8100,
-      "listen": "::",
+      "listen": "0.0.0.0",
       "protocol": "vless",
       "settings": {
         "clients": [
@@ -21,7 +16,7 @@
       "streamSettings": {
         "network": "ws",
         "wsSettings": {
-          "path": "/Telegram-@338888-vless"
+          "path": "/xray"
         }
       }
     }
@@ -29,7 +24,7 @@
   "outbounds": [
     {
       "protocol": "freedom",
-      "tag": "freedom"
+      "settings": {}
     }
   ]
 }
