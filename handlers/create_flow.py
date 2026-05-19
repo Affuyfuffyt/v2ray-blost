@@ -31,7 +31,7 @@ creation_data = {}
 watchdog_started = False
 
 # ==========================================
-# 🛠️ دالة الإضافة الذكية (تدعم السيرفر المحلي والبعيد)
+# 🛠️ دالة الإضافة الذكية (VLESS فقط - المسار الموحد)
 # ==========================================
 def add_client_to_config(user_name, uuid_val, protocol, server_id=1, bot=None, chat_id=None):
     try:
@@ -39,60 +39,28 @@ def add_client_to_config(user_name, uuid_val, protocol, server_id=1, bot=None, c
         config_data = {}
 
         if server_id == 1:
-            # 📌 إضافة للسيرفر المحلي (نفس السيرفر)
             home_dir = os.path.expanduser("~")
             config_path = f"{home_dir}/xray_core/config.json"
             if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config_data = json.load(f)
         else:
-            # 🌐 إضافة لسيرفر بعيد عبر FTP
             server = get_server_details(server_id)
             if not server: return False
             s_id, s_name, s_site_id, s_api, s_host, s_user, s_pass = server
-            
-            # 🔥 الإصلاح الجذري: إجبار استخدام رابط الـ FTP الصحيح للاتصال بالسيرفرات البعيدة
             ftp_domain = s_host if s_host.startswith("ftp-") else f"ftp-{s_host}"
-            
             ftp = ftplib.FTP(ftp_domain)
             ftp.login(s_user, s_pass)
-            
             r = BytesIO()
             ftp.retrbinary("RETR xray_core/config.json", r.write)
             config_data = json.loads(r.getvalue().decode('utf-8'))
 
-        # التعديل على ملف الـ JSON المجلوب
+        # التعديل على البوابة الوحيدة (VLESS)
         if "inbounds" in config_data and len(config_data["inbounds"]) > 0:
-            
-            # 🔥 إضافة المشترك للمنفذ الرئيسي (البوابة 0) إجبارياً حتى يعمل الكود 🔥
-            main_clients = config_data["inbounds"][0].get("settings", {}).setdefault("clients", [])
-            if not any(c.get("id") == uuid_val or c.get("password") == uuid_val for c in main_clients):
-                if protocol in ["vless", "vmess"]:
-                    main_clients.append({"id": uuid_val, "email": user_name, "flow": ""})
-                elif protocol == "trojan":
-                    main_clients.append({"password": uuid_val, "email": user_name})
+            clients = config_data["inbounds"][0].get("settings", {}).setdefault("clients", [])
+            if not any(c.get("id") == uuid_val for c in clients):
+                clients.append({"id": uuid_val, "email": user_name, "level": 0})
                 modified = True
-
-            for inbound in config_data["inbounds"]:
-                if inbound.get("protocol") == "trojan" and "settings" in inbound:
-                    clients = inbound["settings"].setdefault("clients", [])
-                    for c in clients:
-                        if "id" in c: 
-                            c["password"] = c.pop("id")
-                            modified = True
-
-                if inbound.get("tag") == protocol and "settings" in inbound:
-                    clients = inbound["settings"].setdefault("clients", [])
-                    exists = any(c.get("id") == uuid_val or c.get("password") == uuid_val for c in clients)
-                    if not exists:
-                        if protocol == "vless":
-                            clients.append({"id": uuid_val, "email": user_name, "flow": ""})
-                        elif protocol == "vmess":
-                            clients.append({"id": uuid_val, "email": user_name, "alterId": 0})
-                        elif protocol == "trojan":
-                            clients.append({"password": uuid_val, "email": user_name})
-                        modified = True
-                    break 
                     
         if modified:
             if server_id == 1:
@@ -126,10 +94,7 @@ def remove_client_from_config(uuid_val, server_id=1):
             server = get_server_details(server_id)
             if not server: return
             s_id, s_name, s_site_id, s_api, s_host, s_user, s_pass = server
-            
-            # 🔥 الإصلاح الجذري لدالة الحذف أيضاً
             ftp_domain = s_host if s_host.startswith("ftp-") else f"ftp-{s_host}"
-            
             ftp = ftplib.FTP(ftp_domain)
             ftp.login(s_user, s_pass)
             r = BytesIO()
@@ -137,10 +102,11 @@ def remove_client_from_config(uuid_val, server_id=1):
             config_data = json.loads(r.getvalue().decode('utf-8'))
 
         if "inbounds" in config_data:
-            for inbound in config_data["inbounds"]:
+            if len(config_data["inbounds"]) > 0:
+                inbound = config_data["inbounds"][0]
                 if "settings" in inbound and "clients" in inbound["settings"]:
                     original = inbound["settings"]["clients"]
-                    new_clients = [c for c in original if c.get("id") != uuid_val and c.get("password") != uuid_val]
+                    new_clients = [c for c in original if c.get("id") != uuid_val]
                     if len(original) != len(new_clients):
                         inbound["settings"]["clients"] = new_clients
                         modified = True
@@ -198,7 +164,7 @@ def auto_restart_on_expiry(bot, chat_id, expiry_time, user_name, uuid_val, proto
     if wait_seconds > 0:
         time.sleep(wait_seconds) 
         
-    if protocol != "trojan" and server_id == 1:
+    if server_id == 1:
         try:
             from xray_core.panel_api import PanelAPI
             local_api = PanelAPI()
@@ -219,7 +185,6 @@ def auto_restart_on_expiry(bot, chat_id, expiry_time, user_name, uuid_val, proto
 # ==========================================
 def database_expiry_watchdog(bot):
     admin_id = None
-    # 🔥 الحل الجذري الأول: البحث عن ملف .env ديناميكياً بدلاً من المجلد الثابت 🔥
     base_dir = os.path.dirname(os.path.abspath(__file__))
     env_path = os.path.join(base_dir, ".env")
     
@@ -278,7 +243,6 @@ def register_create_handlers(bot):
         threading.Thread(target=database_expiry_watchdog, args=(bot,), daemon=True).start()
         watchdog_started = True
 
-    # 🔥 التحديث: اختيار السيرفر أولاً 🔥
     @bot.callback_query_handler(func=lambda call: call.data == "create_code")
     def start_creation(call):
         chat_id = call.message.chat.id
@@ -380,31 +344,20 @@ def register_create_handlers(bot):
         ask_protocol(chat_id, bot)
 
     def ask_protocol(chat_id, bot, message_id=None):
-        markup = InlineKeyboardMarkup(row_width=3)
-        markup.add(
-            InlineKeyboardButton("VLESS", callback_data="proto_vless"),
-            InlineKeyboardButton("VMESS", callback_data="proto_vmess"),
-            InlineKeyboardButton("Trojan", callback_data="proto_trojan")
-        )
-        text = "🌐 اختر البروتوكول:"
-        if message_id:
-            try: bot.edit_message_text(text, chat_id, message_id, reply_markup=markup)
-            except: bot.send_message(chat_id, text, reply_markup=markup)
-        else:
-            bot.send_message(chat_id, text, reply_markup=markup)
-
-    @bot.callback_query_handler(func=lambda call: call.data.startswith("proto_"))
-    def process_protocol(call):
-        chat_id = call.message.chat.id
-        protocol = call.data.split('_')[1]
-        creation_data[chat_id]['protocol'] = protocol
+        # تم تخطي سؤال البروتوكول، لأنه الآن VLESS إجباري
+        creation_data[chat_id]['protocol'] = 'vless'
         markup = InlineKeyboardMarkup(row_width=1)
         markup.add(
             InlineKeyboardButton("بورت 443 (TLS) 🔒", callback_data="port_443"),
             InlineKeyboardButton("بورت 80 🌐", callback_data="port_80"),
             InlineKeyboardButton("إدخال البورت يدوياً ✍️", callback_data="port_manual")
         )
-        bot.edit_message_text("🚪 اختر البورت:", chat_id, call.message.message_id, reply_markup=markup)
+        text = "🚪 اختر البورت:"
+        if message_id:
+            try: bot.edit_message_text(text, chat_id, message_id, reply_markup=markup)
+            except: bot.send_message(chat_id, text, reply_markup=markup)
+        else:
+            bot.send_message(chat_id, text, reply_markup=markup)
 
     @bot.callback_query_handler(func=lambda call: call.data.startswith("port_"))
     def process_port(call):
@@ -433,7 +386,6 @@ def register_create_handlers(bot):
     def process_ws(call):
         chat_id = call.message.chat.id
         creation_data[chat_id]['network'] = 'ws'
-        creation_data[chat_id]['path'] = '/Telegram-@338888'
         ask_uuid(chat_id, bot, call.message.message_id)
 
     def ask_uuid(chat_id, bot, message_id=None):
@@ -569,8 +521,8 @@ def register_create_handlers(bot):
 
         data = creation_data[chat_id]
         server_id = data.get('server_id', 1)
-        protocol = data.get('protocol', 'vless').lower()
-        fixed_path = f"/Telegram-@338888-{protocol}"
+        protocol = "vless" # تم تثبيت البروتوكول إجبارياً
+        fixed_path = "/xray" # تم تثبيت المسار الجديد
         data['path'] = fixed_path
 
         dur_str = data['duration_str']
@@ -582,7 +534,7 @@ def register_create_handlers(bot):
         
         expiry_time = time.time() + sec
 
-        # الإضافة لملف config.json (محلي أو بعيد)
+        # الإضافة لملف config.json
         bot.send_message(chat_id, "⏳ جاري زراعة الكود في السيرفر المطلوب، يرجى الانتظار...")
         success = add_client_to_config(data['name'], data['uuid'], protocol, server_id, bot, chat_id)
         
@@ -596,7 +548,6 @@ def register_create_handlers(bot):
 
         try:
             selected_port = data.get('port', 443)
-            # تم إضافة server_id للـ DB
             add_user(data['name'], data['uuid'], selected_port, data['quota_bytes'], expiry_time, server_id)
         except Exception as e: print(f"Error saving to SQLite DB: {e}")
 
@@ -619,7 +570,6 @@ def register_create_handlers(bot):
 
         selected_port = data.get('port', 443)
         
-        # 🔥 الحل الجذري الثاني: استخراج يوزر الهوست تلقائياً من اسم المجلد الرئيسي 🔥
         local_user = os.path.basename(os.path.expanduser("~"))
         host_domain = f"{local_user}.alwaysdata.net"
         
@@ -636,7 +586,6 @@ def register_create_handlers(bot):
         else:
             srv = get_server_details(server_id)
             if srv:
-                # srv[4] هو الهوست الحقيقي المحفوظ في قاعدة البيانات
                 raw_host = srv[4] 
                 if raw_host.startswith("ftp-"):
                     raw_host = raw_host[4:]
@@ -653,21 +602,8 @@ def register_create_handlers(bot):
 
         encoded_path = urllib.parse.quote(fixed_path, safe='')
 
-        if protocol == "vless":
-            final_link = f"vless://{data['uuid']}@{host_domain}:{selected_port}?type=ws&security={security_type}&path={encoded_path}&host={host_domain}{sni_str}#{data['name']}"
-        elif protocol == "trojan":
-            final_link = f"trojan://{data['uuid']}@{host_domain}:{selected_port}?type=ws&security={security_type}&path={encoded_path}&host={host_domain}{sni_str}#{data['name']}"
-        elif protocol == "vmess":
-            vmess_dict = {
-                "v": "2", "ps": data['name'], "add": host_domain, "port": str(selected_port),
-                "id": data['uuid'], "aid": "0", "scy": "auto", "net": "ws", "type": "none",
-                "host": host_domain, "path": fixed_path, "tls": security_type, "sni": sni_param, "alpn": ""
-            }
-            vmess_json = json.dumps(vmess_dict)
-            vmess_b64 = base64.b64encode(vmess_json.encode('utf-8')).decode('utf-8')
-            final_link = f"vmess://{vmess_b64}"
-        else:
-            final_link = f"vless://{data['uuid']}@{host_domain}:{selected_port}?type=ws&security={security_type}&path={encoded_path}&host={host_domain}{sni_str}#{data['name']}"
+        # توليد كود VLESS فقط
+        final_link = f"vless://{data['uuid']}@{host_domain}:{selected_port}?type=ws&security={security_type}&path={encoded_path}&host={host_domain}{sni_str}#{data['name']}"
         
         quota_display = "بلا حدود ♾️" if data['quota_bytes'] == 0 else f"{data['quota_bytes'] / (1024**3):.2f} GB"
         
@@ -677,7 +613,7 @@ def register_create_handlers(bot):
 
 🖥️ **السيرفر المستخدم:** `{srv_name}`
 👤 **الاسم:** `{data['name']}`
-🌐 **البروتوكول:** `{protocol.upper()}`
+🌐 **البروتوكول:** `VLESS`
 🚪 **البورت:** `{selected_port}`
 ⏳ **المدة:** `{data['duration_str']}`
 📊 **السعة:** `{quota_display}`
