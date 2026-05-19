@@ -7,7 +7,7 @@
   "inbounds": [
     {
       "port": 8100,
-      "listen": "::",
+      "listen": "0.0.0.0",
       "protocol": "vless",
       "settings": {
         "clients": [],
