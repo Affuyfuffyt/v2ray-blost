@@ -18,11 +18,15 @@ def show_main_menu(bot, chat_id, message_id=None):
     # الأزرار الباقية
     btn_speed = InlineKeyboardButton("📈 فحص الاستهلاك المباشر (Live Test)", callback_data="speed_test")
     btn_server = InlineKeyboardButton("🖥️ حالة الخادم", callback_data="server_status")
-    
+
+    # 🚫 إدارة المواقع المحظورة (Blocklist)
+    btn_blocklist = InlineKeyboardButton("🚫 إدارة المواقع المحظورة", callback_data="manage_blocklist")
+
     # ترتيب الأزرار في اللوحة
     markup.add(btn_create)
     markup.add(btn_manage)
     markup.add(btn_servers) # 👈 زر السيرفرات صار متاح
+    markup.add(btn_blocklist) # 👈 إدارة قائمة المواقع المحظورة (مثل مواقع فحص IP)
     markup.add(btn_radar)
     markup.add(btn_speed)
     markup.add(btn_server)
