@@ -262,43 +262,53 @@ def database_expiry_watchdog(bot):
             pending_rewards = get_all_pending_rewards()
             for ref_email, inv_email, reward_sec, c_id in pending_rewards:
                 if get_user_connection_seconds(inv_email) >= 60:
-                    # 🔎 نجيب بيانات الداعي قبل التمديد حتى نعرف الحالة السابقة (منتهي أم لا)
-                    ref_info = None
-                    try: ref_info = get_user_full_info(ref_email)
-                    except Exception: ref_info = None
-
-                    was_expired = False
+                    # 🔎 نجيب بيانات الداعي لاستخدامها في إعادة الزراعة (uuid + server_id)
                     ref_uuid = None
                     ref_server_id = 1
-                    if ref_info:
-                        ref_uuid = ref_info[0]
-                        ref_server_id = ref_info[2] if ref_info[2] is not None else 1
-                        ref_expiry_str = ref_info[3]
-                        ref_status = ref_info[4]
-                        try:
-                            current_expiry_val = float(ref_expiry_str) if ref_expiry_str else 0
-                        except Exception:
-                            current_expiry_val = 0
-                        # يعتبر منتهي إذا الحالة expired أو الوقت انقضى
-                        was_expired = (ref_status == 'expired') or (current_expiry_val and current_expiry_val <= time.time())
+                    try:
+                        ref_info = get_user_full_info(ref_email)
+                        if ref_info:
+                            ref_uuid = ref_info[0]
+                            ref_server_id = ref_info[2] if ref_info[2] is not None else 1
+                    except Exception:
+                        ref_info = None
 
+                    # 🔄 fallback: لو SQLite فاضي، نحاول نجيب uuid من JSON DB
+                    if not ref_uuid:
+                        try:
+                            from database import load_db as _load_json_db
+                            _jdb = _load_json_db()
+                            if ref_email in _jdb:
+                                ref_uuid = _jdb[ref_email].get('uuid')
+                        except Exception:
+                            pass
+
+                    # 1) نمدد التاريخ في قاعدتي البيانات
                     extend_user_expiry(ref_email, reward_sec)
                     try: extend_json_expiry(ref_email, reward_sec)
                     except: pass
                     remove_pending_reward(inv_email)
 
-                    # 🔥 إعادة زراعة الكود في السيرفر + ريستارت إذا كان الداعي منتهي أو محذوف من الكونفك 🔥
-                    # لأن الواتشدوغ إذا حذف الكود سابقاً لن يعود تلقائياً بمجرد تجديد التاريخ
-                    if was_expired and ref_uuid:
+                    # 2) 🔥 إعادة زراعة الكود دائماً + ريستارت (نفس سلوك التمديد اليدوي)
+                    # الزراعة idempotent (إذا المشترك موجود تتجاهل الإضافة)، والريستارت ضروري لتفعيل الكود
+                    if ref_uuid:
                         try:
                             replanted = add_client_to_config(ref_email, ref_uuid, 'vless', ref_server_id, bot, c_id)
-                            if replanted:
-                                # ريستارت لتفعيل الكود بعد الزراعة
-                                success_msg = f"✅ **تم إعادة زراعة وتفعيل كود الداعي `{ref_email}` بعد إضافة مكافأة الدعوة! 🚀**"
-                                fail_msg = f"⚠️ تمت إعادة زراعة كود `{ref_email}` لكن فشل الريستارت التلقائي."
-                                restart_alwaysdata(bot, c_id, success_msg, fail_msg, ref_server_id)
+                            success_msg = f"✅ **تم إعادة زراعة وتفعيل كود الداعي `{ref_email}` بعد إضافة مكافأة الدعوة! 🚀**"
+                            fail_msg = f"⚠️ تمت محاولة زراعة كود `{ref_email}` لكن فشل الريستارت التلقائي."
+                            # نسوي ريستارت دائماً حتى لو المشترك موجود سلفاً، لأن xray ممكن يكون واقف
+                            restart_alwaysdata(bot, c_id, success_msg, fail_msg, ref_server_id)
                         except Exception as ee:
                             print(f"Reward replant error for {ref_email}: {ee}")
+                    else:
+                        # ما لقينا uuid للداعي — نسوي ريستارت فقط للأمان
+                        try:
+                            restart_alwaysdata(bot, c_id,
+                                f"✅ **تم تفعيل مكافأة `{ref_email}` — تم عمل ريستارت للسيرفر.**",
+                                f"⚠️ تم تفعيل مكافأة `{ref_email}` لكن فشل الريستارت التلقائي.",
+                                ref_server_id)
+                        except Exception:
+                            pass
 
                     bot.send_message(c_id, f"🎉 **تم تفعيل المكافأة المعلقة!**\n\nتم تمديد وقت المشترك الداعي `{ref_email}` بنجاح لأن المشترك الجديد اتصل بالإنترنت! 🚀", parse_mode="Markdown")
                     notify_extension(bot, ref_email, reward_sec)
