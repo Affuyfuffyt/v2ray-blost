@@ -11,6 +11,7 @@ from xray_core.panel_api import PanelAPI
 from handlers import admin_start, create_flow, manage_flow, speed_test, radar_flow
 from handlers import user_handlers # ملف واجهة المشتركين
 from handlers import servers_flow # 🔥 إضافة ملف إدارة السيرفرات الجديد 🔥
+from handlers import blocklist_flow # 🚫 إدارة قائمة المواقع المحظورة (مثل مواقع فحص IP)
 
 # استدعاء المراقبين
 from quota_monitor import start_quota_monitor 
@@ -93,6 +94,7 @@ speed_test.register_speed_handlers(bot)
 radar_flow.register_radar_handlers(bot)
 user_handlers.register_user_handlers(bot) 
 servers_flow.register_servers_handlers(bot) # 🔥 تفعيل أزرار شبكة السيرفرات الجديدة 🔥
+blocklist_flow.register_blocklist_handlers(bot) # 🚫 تفعيل لوحة إدارة المواقع المحظورة
 
 # 🔥 فتح أمر البداية للكل مع صائد الأخطاء ومطابقة الـ ID 🔥
 @bot.message_handler(commands=['start'])
