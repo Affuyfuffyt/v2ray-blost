@@ -18,7 +18,7 @@ from db import (
     add_user, get_active_users, set_user_expired, get_user_by_ref_code,
     extend_user_expiry, assign_ref_code, add_pending_reward,
     get_all_pending_rewards, remove_pending_reward, get_user_connection_seconds,
-    get_all_servers, get_server_details
+    get_all_servers, get_server_details, get_user_full_info
 )
 
 # 👇 استدعاء واجهة الباندل المحلية (Xray-core)
@@ -262,10 +262,53 @@ def database_expiry_watchdog(bot):
             pending_rewards = get_all_pending_rewards()
             for ref_email, inv_email, reward_sec, c_id in pending_rewards:
                 if get_user_connection_seconds(inv_email) >= 60:
+                    # 🔎 نجيب بيانات الداعي لاستخدامها في إعادة الزراعة (uuid + server_id)
+                    ref_uuid = None
+                    ref_server_id = 1
+                    try:
+                        ref_info = get_user_full_info(ref_email)
+                        if ref_info:
+                            ref_uuid = ref_info[0]
+                            ref_server_id = ref_info[2] if ref_info[2] is not None else 1
+                    except Exception:
+                        ref_info = None
+
+                    # 🔄 fallback: لو SQLite فاضي، نحاول نجيب uuid من JSON DB
+                    if not ref_uuid:
+                        try:
+                            from database import load_db as _load_json_db
+                            _jdb = _load_json_db()
+                            if ref_email in _jdb:
+                                ref_uuid = _jdb[ref_email].get('uuid')
+                        except Exception:
+                            pass
+
+                    # 1) نمدد التاريخ في قاعدتي البيانات
                     extend_user_expiry(ref_email, reward_sec)
                     try: extend_json_expiry(ref_email, reward_sec)
                     except: pass
                     remove_pending_reward(inv_email)
+
+                    # 2) 🔥 إعادة زراعة الكود دائماً + ريستارت (نفس سلوك التمديد اليدوي)
+                    # الزراعة idempotent (إذا المشترك موجود تتجاهل الإضافة)، والريستارت ضروري لتفعيل الكود
+                    if ref_uuid:
+                        try:
+                            replanted = add_client_to_config(ref_email, ref_uuid, 'vless', ref_server_id, bot, c_id)
+                            success_msg = f"✅ **تم إعادة زراعة وتفعيل كود الداعي `{ref_email}` بعد إضافة مكافأة الدعوة! 🚀**"
+                            fail_msg = f"⚠️ تمت محاولة زراعة كود `{ref_email}` لكن فشل الريستارت التلقائي."
+                            # نسوي ريستارت دائماً حتى لو المشترك موجود سلفاً، لأن xray ممكن يكون واقف
+                            restart_alwaysdata(bot, c_id, success_msg, fail_msg, ref_server_id)
+                        except Exception as ee:
+                            print(f"Reward replant error for {ref_email}: {ee}")
+                    else:
+                        # ما لقينا uuid للداعي — نسوي ريستارت فقط للأمان
+                        try:
+                            restart_alwaysdata(bot, c_id,
+                                f"✅ **تم تفعيل مكافأة `{ref_email}` — تم عمل ريستارت للسيرفر.**",
+                                f"⚠️ تم تفعيل مكافأة `{ref_email}` لكن فشل الريستارت التلقائي.",
+                                ref_server_id)
+                        except Exception:
+                            pass
 
                     bot.send_message(c_id, f"🎉 **تم تفعيل المكافأة المعلقة!**\n\nتم تمديد وقت المشترك الداعي `{ref_email}` بنجاح لأن المشترك الجديد اتصل بالإنترنت! 🚀", parse_mode="Markdown")
                     notify_extension(bot, ref_email, reward_sec)

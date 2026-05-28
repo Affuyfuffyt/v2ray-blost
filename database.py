@@ -52,7 +52,9 @@ def extend_json_expiry(email, extra_seconds):
     data = load_db()
     if email in data:
         current_expiry = data[email].get('expiry_time', time.time())
-        data[email]['expiry_time'] = current_expiry + extra_seconds
+        # 🔥 إذا كان منتهي (في الماضي) نبدأ من الوقت الحالي لكي تستفيد المدة الجديدة فعلياً
+        base = max(current_expiry, time.time())
+        data[email]['expiry_time'] = base + extra_seconds
         data[email]['is_active'] = True
         update_db(data)
         return True
@@ -180,7 +182,9 @@ def extend_user_expiry(email, extra_seconds):
     data = c.fetchone()
     if data and data[0]:
         current_expiry = float(data[0])
-        new_expiry = current_expiry + extra_seconds
+        # 🔥 إذا كان الاشتراك منتهي (في الماضي) نبدأ من الوقت الحالي
+        base = max(current_expiry, time.time())
+        new_expiry = base + extra_seconds
         c.execute("UPDATE users SET expiry_date=?, status='active' WHERE email=?", (str(new_expiry), email))
         conn.commit()
         conn.close()
